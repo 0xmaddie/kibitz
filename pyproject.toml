@@ -1,0 +1,20 @@
+[project]
+name = "kibitz"
+version = "0.0.1"
+authors = [
+  { name="Madison Brooks", email="maddie@0xmaddie.page" },
+]
+description = "experiments with programming languages and language models"
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+  "pycairo",
+  "numpy",
+  "scipy",
+  "jax",
+  "jaxlib",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
