@@ -8,9 +8,7 @@ description = "experiments with programming languages and language models"
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
-  "pycairo",
   "numpy",
-  "scipy",
   "jax",
   "jaxlib",
 ]
