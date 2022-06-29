@@ -261,25 +261,40 @@ def transformer(stream: Tensor) -> Tensor:
     to_key = use_param(grade=2)
     to_value = use_param(grade=2)
 
-    gain = use_param(grade=1)
-    bias = use_param(grade=1)
+    residual_gain = use_param(grade=1)
+    residual_bias = use_param(grade=1)
+    residual_scale_state = use_state(grade=1)
 
-    state = use_state(grade=2)
+    attention_state = use_state(grade=2)
 
     query = stream@to_query
     key = stream@to_key
     value = stream@to_value
 
-    fast_weight = state.add_mut(key.T@value)
+    # Attention normalization.
+    query = jax.nn.elu(query)+1
+    key = jax.nn.elu(key)+1
 
-    residual = query@fast_weight
+    attention = attention_state.add_mut(key.T@value)
+    residual_scale = residual_scale_state.add_mut(key)
 
+    # Attention normalization.
+    residual = query@attention
+    residual = residual/(query*residual_scale)
+
+    # Layer normalization.
     residual = jax.nn.normalize(residual)
-    residual *= gain
-    residual += bias
+    residual *= residual_gain
+    residual += residual_bias
 
+    # Activation.
     residual = jax.nn.relu(residual)
+
+    # todo: should we normalize again here?
+
     print(f'stream={stream}\nquery={query}\nkey={key}\nvalue={value}\nkey.T@value={key.T@value}\nfast_weight={fast_weight}residual={residual}\nstream+residual={stream+residual}')
+
     stream += residual
+
   stream = jax.nn.softmax(stream, axis=1)
   return stream
