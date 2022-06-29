@@ -7,47 +7,45 @@ from kibitz.synth import Tensor
 from kibitz.synth import use_param
 from kibitz.synth import use_state
 
-def transformer(stream: Tensor) -> Tensor:
-  depth = 2
+def transformer(
+    stream: Tensor,
+    depth: int = 2,
+) -> Tensor:
   for _ in range(0, depth):
-    to_query = use_param(grade=2)
-    to_key = use_param(grade=2)
-    to_value = use_param(grade=2)
+    stream += _attention(stream)
+    stream = _layer_norm(stream)
+    stream += _dense(stream)
+    stream = _layer_norm(stream)
+  return softmax(stream)
 
-    residual_gain = use_param(grade=1)
-    residual_bias = use_param(grade=1)
-    residual_scale_state = use_state(grade=1)
+# This is the "fast weight" layer with normalization from "Linear
+# Transformers Are Secretly Fast Weight Programmers"
+# https://arxiv.org/abs/2102.11174
+def _attention(stream: Tensor) -> Tensor:
+  to_query = use_param(grade=2)
+  to_key = use_param(grade=2)
+  to_value = use_param(grade=2)
+  attn_state = use_state(grade=2)
+  norm_state = use_state(grade=1)
 
-    attention_state = use_state(grade=2)
+  query = stream@to_query
+  key = stream@to_key
+  value = stream@to_value
 
-    query = stream@to_query
-    key = stream@to_key
-    value = stream@to_value
+  query = elu(query)+1
+  key = elu(key)+1
 
-    # Attention normalization.
-    query = elu(query)+1
-    key = elu(key)+1
+  attn = attn_state.add_mut(key.T@value)
+  norm = norm_state.add_mut(key)
 
-    attention = attention_state.add_mut(key.T@value)
-    residual_scale = residual_scale_state.add_mut(key)
+  return (query@attn)/(query*norm)
 
-    # Attention normalization.
-    residual = query@attention
-    residual = residual/(query*residual_scale)
+def _dense(stream: Tensor) -> Tensor:
+  linear = use_param(grade=2)
+  bias = use_param(grade=1)
+  return relu(stream@linear+bias)
 
-    # Layer normalization.
-    residual = normalize(residual)
-    residual *= residual_gain
-    residual += residual_bias
-
-    # Activation.
-    residual = relu(residual)
-
-    # todo: should we normalize again here?
-
-    print(f'stream={stream}\nquery={query}\nkey={key}\nvalue={value}\nkey.T@value={key.T@value}\nattention={attention}residual={residual}\nstream+residual={stream+residual}')
-
-    stream += residual
-
-  stream = softmax(stream)
-  return stream
+def _layer_norm(stream: Tensor) -> Tensor:
+  gain = use_param(grade=1)
+  bias = use_param(grade=1)
+  return gain*normalize(stream)+bias
