@@ -35,8 +35,6 @@ programming languages.
   - [An Algorithmic Interpretation of a Deep Inference System](#an-algorithmic-interpretation-of-a-deep-inference-system)
 
 # Introduction
-
-
 I'd like to make an **analogy** between **synthesis** and standard
 language services like **garbage collection**, **event loops**,
 **package management**, and so on.
@@ -46,6 +44,11 @@ In general I'm interested in using **small**, **typed** languages for
 synthesis experiments. In particular I'm interested in **deep
 inference**, **computability logic**, and **compact closed
 categories**.
+
+I'd like to host these experiments in a language based on [**John
+Shutt's Kernel**](https://web.cs.wpi.edu/~jshutt/kernel.html), a
+**Scheme-like** dialect of **Lisp** in which everything is a
+first-class object.
 
 ## Algebraic Data Types
 **Product and sum types** are a standard part of functional
