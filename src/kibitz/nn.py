@@ -1,6 +1,10 @@
+from typing import Union, List, Callable
+
 import math
 import numpy as np
-from typing import Union, List, Callable
+# i know that jax has all this stuff but i had trouble running it
+# locally so i used numpy for a while.
+from scipy.special import softmax
 
 Num = np.ndarray
 Exp = Callable[[Num], Num]
@@ -23,7 +27,7 @@ class Box:
     self.value = value
 
   def add(self, value: Num) -> Num:
-    self.value += value
+    self.value = self.value+value
     _dynamic_scope._set_state(self.index, self.value)
     return self.value
 
@@ -134,7 +138,13 @@ def compile(exp: Exp, dim: int) -> Model:
   _dynamic_scope = None
   return model
 
-def norm(x: Num) -> Num:
+def one_hot(idx: int, length: int) -> Num:
+  value = np.array([[
+    1.0 if i == idx else 0.0 for i in range(length)
+  ]])
+  return value
+
+def normalize(x: Num) -> Num:
   mean = np.mean(x)
   var = np.cov(x,bias=True)
   stddev = np.sqrt(var)
@@ -164,15 +174,39 @@ def dense(x: Num) -> Num:
 def layer_norm(x: Num) -> Num:
   g = use_param(grade=1)
   b = use_param(grade=1)
-  return g*norm(x)+b
+  return g*normalize(x)+b
 
 def transformer(
     stream: Num,
     depth: int=2,
 ) -> Num:
   for _ in range(0, depth):
-    stream += attention(stream)
+    stream = stream+attention(stream)
     stream = layer_norm(stream)
-    stream += dense(stream)
+    stream = stream+dense(stream)
     stream = layer_norm(stream)
   return stream
+
+class Vocab:
+  tokens: List[str]
+
+  def __init__(self, tokens):
+    self.tokens = tokens
+    self._token_from_index = {
+      idx: tok for idx, tok in enumerate(tokens)
+    }
+    self._index_from_token = {
+      tok: idx for idx, tok in enumerate(tokens)
+    }
+
+  def encode(self, token: str) -> Num:
+    length = len(self.tokens)
+    index = self._index_from_token[token]
+    return one_hot(index, length)
+
+  def decode(self, value: Num) -> str:
+    length = len(self.tokens)
+    rng = np.random.default_rng()
+    index = rng.choice(length, p=value[0])
+    token = self._token_from_index[index]
+    return token
